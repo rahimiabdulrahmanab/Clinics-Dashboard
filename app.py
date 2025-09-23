@@ -67,7 +67,7 @@ for _, row in filtered_df.iterrows():
         location=[row['Latitude'], row['Longitude']],
         popup=popup_html,
         tooltip=row['Facility Name (DHIS2)'],
-        icon=folium.Icon(color='blue', icon='hospital', prefix='fa')
+        icon=folium.Icon(color='blue', icon='plus', prefix='fa')  # 'plus' is a cross
     ).add_to(af_map)
 
 # Display map in Streamlit
