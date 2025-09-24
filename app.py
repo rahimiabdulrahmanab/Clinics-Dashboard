@@ -66,4 +66,4 @@ for _, row in filtered_df.iterrows():
     ).add_to(m)
 
 # Display the map in Streamlit
-st_folium(m, width=1000, height=800)
+st_folium(m, width=700, height=1000)
