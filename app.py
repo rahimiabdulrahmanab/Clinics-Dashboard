@@ -141,6 +141,7 @@ for i, row in nangarhar_df.iterrows():
         </div>""")
     ).add_to(afg_map)
 
-# Show map
-afg_map
+
+# ===== DISPLAY MAP =====
+st_data = st_folium(afg_map, width=800, height=600)
 
