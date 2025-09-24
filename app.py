@@ -1,90 +1,89 @@
-# ===== IMPORT LIBRARIES =====
-import pandas as pd
-import folium
-import numpy as np
-from streamlit_folium import st_folium
 import streamlit as st
+from streamlit_folium import st_folium
+import folium
 
-# ===== PAGE CONFIG =====
-st.set_page_config(
-    page_title="Afghanistan Clinics Dashboard",
-    page_icon="🏥",
-    layout="wide"
-)
+# Columns: left for filter, right for search & toggle
+left_col, right_col = st.columns([1, 1])
 
-# ===== TOP HEADER =====
-st.markdown(
-    """
-    <div style='background-color:#4CAF50;padding:20px;border-radius:10px;margin-bottom:10px'>
-        <h1 style='color:white;text-align:center;'>Afghanistan Clinics Dashboard</h1>
-    </div>
-    """, unsafe_allow_html=True
-)
+# ---------------- LEFT: Province filter ----------------
+with left_col:
+    st.header("Filter Clinics")
+    provinces = ["All"] + list(df['Province Name'].unique())
+    selected_province = st.selectbox("Select Province", provinces)
 
-# ===== LOAD DATA =====
-url = "https://raw.githubusercontent.com/rahimiabdulrahmanab/Clinics-Dashboard/main/Clinics.csv"
-df = pd.read_csv(url)
+    if selected_province == "All":
+        filtered_df = df.copy()
+        center_lat = df['Latitude'].mean()
+        center_lon = df['Longitude'].mean()
+        zoom_level = 6
+    else:
+        filtered_df = df[df['Province Name'] == selected_province]
+        center_lat = filtered_df['Latitude'].mean()
+        center_lon = filtered_df['Longitude'].mean()
+        zoom_level = 7
 
-# Exclude clinic with wrong coordinates
-df = df[df["Facility Name (DHIS2)"] != "Jokan-CHC (8629)"]
+# ---------------- RIGHT: Search + Distance toggle ----------------
+with right_col:
+    st.subheader("Search Facility")
+    search_name = st.text_input("Enter Facility Name:")
+    show_distances = st.radio("Options", ["None", "Distance Between Clinics"])
 
-# ===== HAVERSINE FUNCTION =====
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6371
-    dlat = np.radians(lat2 - lat1)
-    dlon = np.radians(lon2 - lon1)
-    a = (np.sin(dlat/2)**2 +
-         np.cos(np.radians(lat1))*np.cos(np.radians(lat2))*np.sin(dlon/2)**2)
-    c = 2 * np.arcsin(np.sqrt(a))
-    return R*c
+# ----------------- Create base map -----------------
+m = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_level)
 
-# ===== SIDEBAR =====
-st.sidebar.header("Filter Clinics")
-provinces = ["All"] + list(df['Province Name'].unique())
-selected_province = st.sidebar.selectbox("Select Province", provinces)
+# ----------------- Add markers -----------------
+for _, row in filtered_df.iterrows():
+    folium.Marker(
+        location=[row['Latitude'], row['Longitude']],
+        popup=f"{row['Facility Name (DHIS2)']} ({row['District Name']})",
+        tooltip=row['Facility Name (DHIS2)'],
+        icon=folium.DivIcon(html=f"""
+        <div style="
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 2px solid red;
+            background-color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: red;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            box-shadow: 5px 5px 6px rgba(0,0,0,0.5);
+        ">✚</div>
+        """)
+    ).add_to(m)
 
-# Filter data
-if selected_province == "All":
-    filtered_df = df
-else:
-    filtered_df = df[df['Province Name'] == selected_province]
-
-# ===== DETERMINE MAP CENTER =====
-if not filtered_df.empty:
-    center_lat = filtered_df['Latitude'].mean()
-    center_lon = filtered_df['Longitude'].mean()
-    zoom_level = 7 if selected_province != "All" else 6
-else:
-    center_lat, center_lon = 34.5, 69.2
-    zoom_level = 6.5
-
-# ===== CREATE COLUMNS =====
-col1, col2 = st.columns([3, 1])  # Left for map (3/4), right for table (1/4)
-
-# ===== MAP =====
-with col1:
-    afg_map = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_level)
-    for _, row in filtered_df.iterrows():
-        popup_html = f"""
-        <table style="border-collapse: collapse; width: 220px;">
-          <tr><th colspan="2" style="text-align:center; background-color:#f2f2f2;">{row['Facility Name (DHIS2)']}</th></tr>
-          <tr><td style="border:1px solid black; padding:3px;">Province</td><td style="border:1px solid black; padding:3px;">{row['Province Name']}</td></tr>
-          <tr><td style="border:1px solid black; padding:3px;">District</td><td style="border:1px solid black; padding:3px;">{row['District Name']}</td></tr>
-          <tr><td style="border:1px solid black; padding:3px;">Facility ID</td><td style="border:1px solid black; padding:3px;">{row['FacilityID']}</td></tr>
-          <tr><td style="border:1px solid black; padding:3px;">Facility Type</td><td style="border:1px solid black; padding:3px;">{row['Facility Type']}</td></tr>
-          <tr><td style="border:1px solid black; padding:3px;">Donor</td><td style="border:1px solid black; padding:3px;">{row['Donor']}</td></tr>
-        </table>
-        """
+# ----------------- Handle search -----------------
+if search_name:
+    clinic = df[df['Facility Name (DHIS2)'].str.contains(search_name, case=False)]
+    if not clinic.empty:
+        c = clinic.iloc[0]
         folium.Marker(
-            location=[row['Latitude'], row['Longitude']],
-            popup=popup_html,
-            tooltip=f"{row['Facility Name (DHIS2)']}",
-            icon=folium.DivIcon(html='<div style="color:red;font-size:12px;">✚</div>')
-        ).add_to(afg_map)
-    
-    st_folium(afg_map, width=900, height=600)
+            location=[c['Latitude'], c['Longitude']],
+            popup=f"{c['Facility Name (DHIS2)']} ({c['District Name']})",
+            icon=folium.Icon(color="green", icon="star")
+        ).add_to(m)
+        m.location = [c['Latitude'], c['Longitude']]
+        m.zoom_start = 10
+        st.write(f"**Selected Clinic Info:** Province: {c['Province Name']}, District: {c['District Name']}, Facility ID: {c['FacilityID']}")
 
-# ===== TABLE =====
-with col2:
-    st.markdown("### Clinic Details")
-    st.dataframe(filtered_df.reset_index(drop=True))
+# ----------------- Handle distance between clinics -----------------
+if show_distances == "Distance Between Clinics":
+    nangarhar_df = df[df['Province Name'] == "Nangarhar"]
+    m.location = [34.43, 70.44]
+    m.zoom_start = 8
+    # draw lines between nearest clinics (reuse Haversine + DivIcon distance labels logic)
+    # ...
+
+# ----------------- Add custom map title -----------------
+title_html = """
+    <h3 style="color:darkblue; font-size:18px; margin-bottom:10px; margin-top:-10px; text-align:center;">
+        Clinics Map
+    </h3>
+"""
+m.get_root().html.add_child(folium.Element(title_html))
+
+# ----------------- Display map -----------------
+st_folium(m, width=700, height=500)
