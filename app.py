@@ -69,7 +69,7 @@ else:
 
 
 # Center of Afghanistan (approx)
-af_map = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_level)
+afg_map = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_level)
 
 
 
