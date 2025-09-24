@@ -7,9 +7,9 @@ from streamlit_folium import st_folium
 # Assuming your DataFrame 'df' is already loaded and processed
 # If not, you'll need to include the data loading and processing code here
 # Example:
-# url="https://raw.githubusercontent.com/rahimiabdulrahmanab/Clinics-Dashboard/refs/heads/main/Clinics.csv"
-# df=pd.read_csv(url)
-# df = df[df["Facility Name (DHIS2)"] != "Jokan-CHC (8629)"]
+url="https://raw.githubusercontent.com/rahimiabdulrahmanab/Clinics-Dashboard/refs/heads/main/Clinics.csv"
+df=pd.read_csv(url)
+df = df[df["Facility Name (DHIS2)"] != "Jokan-CHC (8629)"]
 
 
 st.set_page_config(layout="wide")
