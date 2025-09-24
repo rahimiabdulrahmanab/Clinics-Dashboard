@@ -35,9 +35,6 @@ def haversine(lat1, lon1, lat2, lon2):
 # Filter for Nangarhar province
 nangarhar_df = df[df['Province Name'] == 'Nangarhar'].copy()
 
-pip install streamlit
-pip install streamlit-folium
-
 
 
 # Sidebar for filtering
