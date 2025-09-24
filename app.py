@@ -1,7 +1,8 @@
 import streamlit as st
 from streamlit_folium import st_folium
 import folium
-
+url="https://raw.githubusercontent.com/rahimiabdulrahmanab/Clinics-Dashboard/refs/heads/main/Clinics.csv"
+df=pd.read_csv(url)
 # Columns: left for filter, right for search & toggle
 left_col, right_col = st.columns([1, 1])
 
