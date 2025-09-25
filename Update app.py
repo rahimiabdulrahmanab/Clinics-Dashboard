@@ -30,8 +30,6 @@ col1, col2 = st.columns([3, 1])  # Left 3 parts map, Right 1 part sidebar
 
 with col2:
     st.header("Clinic Details & Histogram")
-
-    # Placeholder for table & histogram
     table_placeholder = st.empty()
     hist_placeholder = st.empty()
 
@@ -65,7 +63,7 @@ with col1:
 
     # --- Create Folium Map ---
     afg_map = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_level)
-    marker_dict = {}  # To store mapping from marker ID to clinic name
+    marker_dict = {}
 
     for idx, row in filtered_df.iterrows():
         popup_html = f"""
@@ -73,9 +71,7 @@ with col1:
           <tr><th colspan="2" style="text-align:center; background-color:#f2f2f2;">{row['Facility Name (DHIS2)']}</th></tr>
           <tr><td style="border:1px solid black; padding:3px;">Province</td><td style="border:1px solid black; padding:3px;">{row['Province Name']}</td></tr>
           <tr><td style="border:1px solid black; padding:3px;">District</td><td style="border:1px solid black; padding:3px;">{row['District Name']}</td></tr>
-          <tr><td style="border:1px solid black; padding:3px;">Facility ID</td><td style="border:1px solid black; padding:3px;">{row['FacilityID']}</td></tr>
           <tr><td style="border:1px solid black; padding:3px;">Facility Type</td><td style="border:1px solid black; padding:3px;">{row['Facility Type']}</td></tr>
-          <tr><td style="border:1px solid black; padding:3px;">Donor</td><td style="border:1px solid black; padding:3px;">{row['Donor']}</td></tr>
         </table>
         """
         marker = folium.Marker(
@@ -138,13 +134,15 @@ with col1:
         selected_clinic_name = filtered_df.iloc[0]['Facility Name (DHIS2)']
 
     if selected_clinic_name:
-        clinic_df = df[df['Facility Name (DHIS2)'] == selected_clinic_name]
+        clinic_df = df[df['Facility Name (DHIS2)'] == selected_clinic_name][
+            ['Facility Name (DHIS2)', 'District Name', 'Facility Type']
+        ]
     else:
-        clinic_df = filtered_df.head(1)
+        clinic_df = filtered_df[['Facility Name (DHIS2)', 'District Name', 'Facility Type']].head(1)
 
     # --- Update Table & Histogram ---
     with col2:
         table_placeholder.table(clinic_df)
 
-        hist_fig = px.histogram(clinic_df, x="Facility Type", color="Facility Type", title="Facility Type Distribution")
+        hist_fig = px.histogram(clinic_df, x='Facility Type', title="Facility Type Distribution")
         hist_placeholder.plotly_chart(hist_fig, use_container_width=True)
