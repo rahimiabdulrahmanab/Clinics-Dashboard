@@ -43,7 +43,7 @@ if not filtered_df.empty:
     center_lat = filtered_df['Latitude'].mean()
     center_lon = filtered_df['Longitude'].mean()
     # Zoom in closer if single province, farther if All
-    zoom_level = 7 if selected_province != "All" else 6
+    zoom_level = 8 if selected_province != "All" else 6
 else:
     center_lat = 34.5
     center_lon = 69.2
