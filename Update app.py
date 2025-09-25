@@ -22,18 +22,26 @@ def haversine(lat1, lon1, lat2, lon2):
     c = 2 * np.arcsin(np.sqrt(a))
     return R * c
 
-# --- Streamlit Page Config ---
+# --- Page Config & CSS to fix full screen ---
 st.set_page_config(page_title="Afghanistan Clinics Dashboard", layout="wide")
+st.markdown("""
+    <style>
+        /* Fix full screen height and prevent scroll */
+        html, body, [class*="css"]  {
+            height: 100%;
+            overflow: hidden;
+        }
+        .stApp {
+            height: 100vh;
+            overflow: hidden;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
-# --- Layout ---
-col1, col2 = st.columns([3, 1])  # Left 3 parts map, Right 1 part sidebar
+# --- Layout: left (map) & right (table+histogram) ---
+col_map, col_right = st.columns([3,1])
 
-with col2:
-    st.header("Clinic Details & Histogram")
-    table_placeholder = st.empty()
-    hist_placeholder = st.empty()
-
-with col1:
+with col_map:
     st.title("Afghanistan Clinics Dashboard (Map)")
 
     # --- Sidebar filters ---
@@ -41,7 +49,7 @@ with col1:
         st.header("Filters")
         provinces = ["All"] + list(df['Province Name'].unique())
         selected_province = st.selectbox("Select Province", provinces)
-        search_name = st.text_input("Search Clinic by Name:")
+        search_name = st.text_input("Search Clinic by Name")
         show_distance = st.radio("Options:", ["Hide Distances", "Show Distances (Nangarhar)"])
 
     # --- Filter Data ---
@@ -62,44 +70,23 @@ with col1:
         zoom_level = 6
 
     # --- Create Folium Map ---
-    afg_map = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_level)
-    marker_dict = {}
+    afg_map = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_level, width="100%", height=800)
 
     for idx, row in filtered_df.iterrows():
         popup_html = f"""
-        <table style="border-collapse: collapse; width: 250px;">
-          <tr><th colspan="2" style="text-align:center; background-color:#f2f2f2;">{row['Facility Name (DHIS2)']}</th></tr>
-          <tr><td style="border:1px solid black; padding:3px;">Province</td><td style="border:1px solid black; padding:3px;">{row['Province Name']}</td></tr>
-          <tr><td style="border:1px solid black; padding:3px;">District</td><td style="border:1px solid black; padding:3px;">{row['District Name']}</td></tr>
-          <tr><td style="border:1px solid black; padding:3px;">Facility Type</td><td style="border:1px solid black; padding:3px;">{row['Facility Type']}</td></tr>
-        </table>
+        <b>{row['Facility Name (DHIS2)']}</b><br>
+        Province: {row['Province Name']}<br>
+        District: {row['District Name']}<br>
+        Type: {row['Facility Type']}
         """
-        marker = folium.Marker(
+        folium.Marker(
             location=[row['Latitude'], row['Longitude']],
             popup=popup_html,
             tooltip=row['Facility Name (DHIS2)'],
-            icon=folium.DivIcon(html=f"""
-            <div style="
-                width: 15px;
-                height: 15px;
-                border-radius: 50%;
-                border: 2px solid white;
-                background-color: red;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 10px;
-                color: white;
-                text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-            ">
-                ✚
-            </div>
-            """)
-        )
-        marker.add_to(afg_map)
-        marker_dict[f"{row['Facility Name (DHIS2)']}"] = row
+            icon=folium.Icon(color='red', icon='plus')
+        ).add_to(afg_map)
 
-    # --- Nangarhar distances ---
+    # --- Show Nangarhar distances ---
     if show_distance == "Show Distances (Nangarhar)":
         nangarhar_df = df[df['Province Name'] == "Nangarhar"].copy()
         for i, row in nangarhar_df.iterrows():
@@ -114,35 +101,34 @@ with col1:
                 line = [[lat1, lon1], [nearest['Latitude'], nearest['Longitude']]]
                 folium.PolyLine(locations=line, color="blue", weight=2, opacity=0.6,
                                 tooltip=f"{nearest['Facility Name (DHIS2)']} ({nearest_dist:.2f} km)").add_to(afg_map)
-                mid_lat = (lat1 + nearest['Latitude']) / 2
-                mid_lon = (lon1 + nearest['Longitude']) / 2
+                mid_lat = (lat1 + nearest['Latitude'])/2
+                mid_lon = (lon1 + nearest['Longitude'])/2
                 folium.map.Marker([mid_lat, mid_lon],
-                                  icon=folium.DivIcon(html=f"<div style='font-size: 10px; color: black;'>{nearest_dist:.2f} km</div>")
-                                  ).add_to(afg_map)
+                                  icon=folium.DivIcon(html=f"<div style='font-size:10px'>{nearest_dist:.2f} km</div>")).add_to(afg_map)
 
     # --- Display Map ---
-    st_data = st_folium(afg_map, width=900, height=600)
+    map_data = st_folium(afg_map, width=900, height=800)
 
-    # --- Selected Clinic from Map Click ---
-    selected_clinic_name = None
-    if st_data and st_data.get("last_object_clicked"):
-        selected_clinic_name = st_data["last_object_clicked"].get("tooltip")
+with col_right:
+    st.header("Clinic Details")
+    selected_clinic = None
+    if map_data and map_data.get("last_object_clicked"):
+        selected_clinic = map_data["last_object_clicked"]["tooltip"]
 
-    if not selected_clinic_name and search_name:
-        selected_clinic_name = search_name
-    if not selected_clinic_name and not filtered_df.empty:
-        selected_clinic_name = filtered_df.iloc[0]['Facility Name (DHIS2)']
+    if not selected_clinic and search_name:
+        selected_clinic = search_name
+    if not selected_clinic and not filtered_df.empty:
+        selected_clinic = filtered_df.iloc[0]['Facility Name (DHIS2)']
 
-    if selected_clinic_name:
-        clinic_df = df[df['Facility Name (DHIS2)'] == selected_clinic_name][
-            ['Facility Name (DHIS2)', 'District Name', 'Facility Type']
+    if selected_clinic:
+        clinic_df = df[df['Facility Name (DHIS2)']==selected_clinic][
+            ['Facility Name (DHIS2)','District Name','Facility Type']
         ]
     else:
-        clinic_df = filtered_df[['Facility Name (DHIS2)', 'District Name', 'Facility Type']].head(1)
+        clinic_df = filtered_df[['Facility Name (DHIS2)','District Name','Facility Type']].head(1)
 
-    # --- Update Table & Histogram ---
-    with col2:
-        table_placeholder.table(clinic_df)
+    st.table(clinic_df)
 
-        hist_fig = px.histogram(clinic_df, x='Facility Type', title="Facility Type Distribution")
-        hist_placeholder.plotly_chart(hist_fig, use_container_width=True)
+    st.header("Facility Type Histogram")
+    hist_fig = px.histogram(clinic_df, x="Facility Type", color="Facility Type")
+    st.plotly_chart(hist_fig, use_container_width=True)
